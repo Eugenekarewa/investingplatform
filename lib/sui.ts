@@ -17,155 +17,188 @@ import { TransactionBlock } from "@mysten/sui.js/transactions"
 
 // Configuration
 const SUI_NETWORK = "https://fullnode.devnet.sui.io" // Change as needed
-const PACKAGE_ID = "" // Update with your deployed package ID
-const PLATFORM_ID = "" // Update with your platform object ID
+const PACKAGE_ID = "0xd0ab6d20fb0d451ee3819b590693b1d4aea32c0b0dd57000beb2c48a31aa034d" // Update with your deployed package ID
+const PLATFORM_ID = "0xd0ab6d20fb0d451ee3819b590693b1d4aea32c0b0dd57000beb2c48a31aa034d" // Update with your platform object ID
 
-// Development mode flag - set to true to use mock wallet
+// Development mode flag - only used for transaction simulation, not for wallet address
 const DEV_MODE = true
-const MOCK_WALLET_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678"
+// This mock address is only used as a last resort if no wallet is available
+const MOCK_WALLET_ADDRESS = "0x5ece0c1c2b944d1b73afbca954d96e5ba6301838c868160a0e382f17c237457e"
 
 // Initialize client
 const suiClient = new SuiClient({ url: SUI_NETWORK })
 
 // Wallet connection
 export async function connectToWallet() {
-  // In development mode, return a mock wallet
+  if (typeof window === "undefined") {
+    throw new Error("Cannot connect to wallet on server side")
+  }
+
+  // Always try to connect to the real wallet first
+  const walletProvider = window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+
+  if (walletProvider) {
+    try {
+      // Try different methods of connecting based on wallet provider implementation
+      let response
+      if (walletProvider.requestPermissions) {
+        response = await walletProvider.requestPermissions()
+      } else if (walletProvider.connect) {
+        response = await walletProvider.connect()
+      } else {
+        throw new Error("Wallet provider does not support connection methods")
+      }
+
+      // Get accounts using available method
+      let accounts
+      if (walletProvider.getAccounts) {
+        accounts = await walletProvider.getAccounts()
+      } else if (walletProvider.getAddress) {
+        const address = await walletProvider.getAddress()
+        accounts = address ? [address] : []
+      } else {
+        throw new Error("Cannot retrieve wallet accounts")
+      }
+
+      if (accounts && accounts.length > 0) {
+        return {
+          address: accounts[0],
+          connected: true,
+        }
+      }
+      throw new Error("No accounts found")
+    } catch (error) {
+      console.error("Error connecting to real wallet:", error)
+      // If we're not in DEV_MODE, rethrow the error
+      if (!DEV_MODE) {
+        throw error
+      }
+      // Otherwise, continue to the fallback
+    }
+  }
+
+  // Fallback to mock wallet only if in DEV_MODE and no real wallet is available
   if (DEV_MODE) {
-    console.log("Using mock wallet in development mode")
+    console.warn("No Sui wallet extension found. Using mock wallet in development mode.")
     return {
       address: MOCK_WALLET_ADDRESS,
       connected: true,
     }
   }
 
-  if (typeof window === "undefined") {
-    throw new Error("Cannot connect to wallet on server side")
-  }
-
-  // Check for different wallet providers
-  const walletProvider = window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
-
-  if (!walletProvider) {
-    console.error("No Sui wallet provider found. Please install the Sui Wallet extension.")
-    throw new Error("Sui Wallet extension not found. Please install the Sui Wallet extension and refresh the page.")
-  }
-
-  try {
-    // Try different methods of connecting based on wallet provider implementation
-    let response
-    if (walletProvider.requestPermissions) {
-      response = await walletProvider.requestPermissions()
-    } else if (walletProvider.connect) {
-      response = await walletProvider.connect()
-    } else {
-      throw new Error("Wallet provider does not support connection methods")
-    }
-
-    // Get accounts using available method
-    let accounts
-    if (walletProvider.getAccounts) {
-      accounts = await walletProvider.getAccounts()
-    } else if (walletProvider.getAddress) {
-      const address = await walletProvider.getAddress()
-      accounts = address ? [address] : []
-    } else {
-      throw new Error("Cannot retrieve wallet accounts")
-    }
-
-    if (accounts && accounts.length > 0) {
-      return {
-        address: accounts[0],
-        connected: true,
-      }
-    }
-    throw new Error("No accounts found")
-  } catch (error) {
-    console.error("Error connecting to wallet:", error)
-    throw error
-  }
+  // If not in DEV_MODE and no wallet is available, throw an error
+  throw new Error("Sui Wallet extension not found. Please install the Sui Wallet extension and refresh the page.")
 }
 
 export async function disconnectWallet() {
+  if (typeof window !== "undefined") {
+    // Always try to disconnect from the real wallet first
+    const walletProvider =
+      window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+
+    if (walletProvider) {
+      try {
+        // Try different disconnect methods
+        if (walletProvider.disconnect) {
+          await walletProvider.disconnect()
+        } else if (walletProvider.signOut) {
+          await walletProvider.signOut()
+        }
+        return true
+      } catch (error) {
+        console.error("Error disconnecting from real wallet:", error)
+        // If we're not in DEV_MODE, return false to indicate failure
+        if (!DEV_MODE) {
+          return false
+        }
+        // Otherwise, continue to the fallback
+      }
+    }
+  }
+
   // In development mode, just return success
   if (DEV_MODE) {
     console.log("Mock wallet disconnected in development mode")
     return true
   }
 
-  if (typeof window !== "undefined") {
-    // Check for different wallet providers
-    const walletProvider =
-      window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
-
-    if (walletProvider) {
-      // Try different disconnect methods
-      if (walletProvider.disconnect) {
-        await walletProvider.disconnect()
-      } else if (walletProvider.signOut) {
-        await walletProvider.signOut()
-      }
-      return true
-    }
-  }
   return false
 }
 
 export async function getConnectedWallet() {
-  // In development mode, check if we should return a mock connected wallet
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  // Always try to get the real wallet first
+  const walletProvider = window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+
+  if (walletProvider) {
+    try {
+      // Get accounts using available method
+      let accounts
+      if (walletProvider.getAccounts) {
+        accounts = await walletProvider.getAccounts()
+      } else if (walletProvider.getAddress) {
+        const address = await walletProvider.getAddress()
+        accounts = address ? [address] : []
+      } else {
+        throw new Error("Cannot retrieve wallet accounts")
+      }
+
+      if (accounts && accounts.length > 0) {
+        return {
+          address: accounts[0],
+          connected: true,
+        }
+      }
+    } catch (error) {
+      console.error("Error getting connected real wallet:", error)
+      // If we're not in DEV_MODE, return null
+      if (!DEV_MODE) {
+        return null
+      }
+      // Otherwise, continue to the fallback
+    }
+  }
+
+  // Fallback to mock wallet only if in DEV_MODE and no real wallet is available
   if (DEV_MODE) {
-    // Simulate a 50% chance of being already connected in dev mode
-    // This allows testing both connected and disconnected states
+    // Check if we should return a mock connected wallet
     const shouldBeConnected = localStorage.getItem("devWalletConnected") === "true"
 
     if (shouldBeConnected) {
-      console.log("Using mock connected wallet in development mode")
+      console.warn("No real wallet found. Using mock connected wallet in development mode")
       return {
         address: MOCK_WALLET_ADDRESS,
         connected: true,
       }
     }
-    return null
   }
 
-  if (typeof window === "undefined") {
-    return null
-  }
-
-  // Check for different wallet providers
-  const walletProvider = window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
-
-  if (!walletProvider) {
-    return null
-  }
-
-  try {
-    // Get accounts using available method
-    let accounts
-    if (walletProvider.getAccounts) {
-      accounts = await walletProvider.getAccounts()
-    } else if (walletProvider.getAddress) {
-      const address = await walletProvider.getAddress()
-      accounts = address ? [address] : []
-    } else {
-      return null
-    }
-
-    if (accounts && accounts.length > 0) {
-      return {
-        address: accounts[0],
-        connected: true,
-      }
-    }
-    return null
-  } catch (error) {
-    console.error("Error getting connected wallet:", error)
-    return null
-  }
+  return null
 }
 
 // Contract Interactions
 export async function registerUser(riskProfile: number) {
-  // In development mode, simulate successful registration
+  // Check if we have a real wallet
+  const walletProvider =
+    typeof window !== "undefined"
+      ? window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+      : null
+
+  // If we have a real wallet and it supports the necessary methods, use it
+  if (walletProvider && walletProvider.signAndExecuteTransactionBlock && PACKAGE_ID) {
+    const txb = new TransactionBlock()
+    txb.moveCall({
+      target: `${PACKAGE_ID}::core::register_user`,
+      arguments: [txb.pure(riskProfile)],
+    })
+
+    return executeTransaction(txb)
+  }
+
+  // Otherwise, if in DEV_MODE, simulate the transaction
   if (DEV_MODE) {
     console.log("Mock user registration with risk profile:", riskProfile)
     await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
@@ -177,21 +210,32 @@ export async function registerUser(riskProfile: number) {
     }
   }
 
-  if (typeof window === "undefined" || !window.suiWallet) {
-    throw new Error("Wallet not connected")
-  }
-
-  const txb = new TransactionBlock()
-  txb.moveCall({
-    target: `${PACKAGE_ID}::core::register_user`,
-    arguments: [txb.pure(riskProfile)],
-  })
-
-  return executeTransaction(txb)
+  throw new Error("Wallet not connected or package ID not set")
 }
 
 export async function investInAsset(assetId: string, amount: number) {
-  // In development mode, simulate successful investment
+  // Check if we have a real wallet
+  const walletProvider =
+    typeof window !== "undefined"
+      ? window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+      : null
+
+  // If we have a real wallet and it supports the necessary methods, use it
+  if (walletProvider && walletProvider.signAndExecuteTransactionBlock && PACKAGE_ID && PLATFORM_ID) {
+    const txb = new TransactionBlock()
+    const asset = txb.object(assetId)
+    const platform = txb.object(PLATFORM_ID)
+    const coin = txb.splitCoins(txb.gas, [txb.pure(amount)])
+
+    txb.moveCall({
+      target: `${PACKAGE_ID}::core::invest_in_asset`,
+      arguments: [asset, coin, platform],
+    })
+
+    return executeTransaction(txb)
+  }
+
+  // Otherwise, if in DEV_MODE, simulate the transaction
   if (DEV_MODE) {
     console.log("Mock investment in asset:", assetId, "amount:", amount)
     await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
@@ -203,28 +247,31 @@ export async function investInAsset(assetId: string, amount: number) {
     }
   }
 
-  if (typeof window === "undefined" || !window.suiWallet) {
-    throw new Error("Wallet not connected")
-  }
-
-  const txb = new TransactionBlock()
-  // You'll need to get the asset and platform objects
-  const asset = txb.object(assetId)
-  const platform = txb.object(PLATFORM_ID)
-
-  // Create a coin with the specified amount
-  const coin = txb.splitCoins(txb.gas, [txb.pure(amount)])
-
-  txb.moveCall({
-    target: `${PACKAGE_ID}::core::invest_in_asset`,
-    arguments: [asset, coin, platform],
-  })
-
-  return executeTransaction(txb)
+  throw new Error("Wallet not connected or package/platform ID not set")
 }
 
 export async function contributeToPool(poolId: string, amount: number) {
-  // In development mode, simulate successful contribution
+  // Check if we have a real wallet
+  const walletProvider =
+    typeof window !== "undefined"
+      ? window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+      : null
+
+  // If we have a real wallet and it supports the necessary methods, use it
+  if (walletProvider && walletProvider.signAndExecuteTransactionBlock && PACKAGE_ID) {
+    const txb = new TransactionBlock()
+    const pool = txb.object(poolId)
+    const coin = txb.splitCoins(txb.gas, [txb.pure(amount)])
+
+    txb.moveCall({
+      target: `${PACKAGE_ID}::core::contribute_to_pool`,
+      arguments: [pool, coin],
+    })
+
+    return executeTransaction(txb)
+  }
+
+  // Otherwise, if in DEV_MODE, simulate the transaction
   if (DEV_MODE) {
     console.log("Mock contribution to pool:", poolId, "amount:", amount)
     await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
@@ -236,25 +283,16 @@ export async function contributeToPool(poolId: string, amount: number) {
     }
   }
 
-  if (typeof window === "undefined" || !window.suiWallet) {
-    throw new Error("Wallet not connected")
-  }
-
-  const txb = new TransactionBlock()
-  const pool = txb.object(poolId)
-  const coin = txb.splitCoins(txb.gas, [txb.pure(amount)])
-
-  txb.moveCall({
-    target: `${PACKAGE_ID}::core::contribute_to_pool`,
-    arguments: [pool, coin],
-  })
-
-  return executeTransaction(txb)
+  throw new Error("Wallet not connected or package ID not set")
 }
 
 // Helper to execute transactions
 async function executeTransaction(txb: any) {
   try {
+    if (!window.suiWallet) {
+      throw new Error("Sui wallet not available")
+    }
+
     const result = await window.suiWallet.signAndExecuteTransactionBlock({
       transactionBlock: txb,
       options: {
