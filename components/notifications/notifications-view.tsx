@@ -19,7 +19,7 @@ const notifications = [
     description: "Your investment in Real Estate Fund was successful.",
     date: new Date(Date.now() - 3600000 * 2), // 2 hours ago
     read: false,
-    type: "success",
+    type: "success" as const, // Add type assertion
   },
   {
     id: "n2",
@@ -27,7 +27,7 @@ const notifications = [
     description: "Your contribution to Startup Accelerator Pool was processed.",
     date: new Date(Date.now() - 86400000), // 1 day ago
     read: true,
-    type: "info",
+    type: "info" as const, // Add type assertion
   },
   {
     id: "n3",
@@ -35,7 +35,7 @@ const notifications = [
     description: "Tech Stocks price has increased by 5% in the last 24 hours.",
     date: new Date(Date.now() - 86400000 * 2), // 2 days ago
     read: false,
-    type: "alert",
+    type: "alert" as const, // Add type assertion
   },
   {
     id: "n4",
@@ -43,7 +43,7 @@ const notifications = [
     description: "A new Green Energy Fund is now available for investment.",
     date: new Date(Date.now() - 86400000 * 3), // 3 days ago
     read: true,
-    type: "info",
+    type: "info" as const, // Add type assertion
   },
   {
     id: "n5",
@@ -51,7 +51,7 @@ const notifications = [
     description: "New investment opportunity matching your risk profile is available.",
     date: new Date(Date.now() - 86400000 * 4), // 4 days ago
     read: true,
-    type: "info",
+    type: "info" as const, // Add type assertion
   },
   {
     id: "n6",
@@ -59,7 +59,7 @@ const notifications = [
     description: "Your withdrawal request has been processed successfully.",
     date: new Date(Date.now() - 86400000 * 5), // 5 days ago
     read: true,
-    type: "success",
+    type: "success" as const, // Add type assertion
   },
   {
     id: "n7",
@@ -67,7 +67,7 @@ const notifications = [
     description: "The Startup Accelerator Pool has reached its funding goal.",
     date: new Date(Date.now() - 86400000 * 6), // 6 days ago
     read: true,
-    type: "success",
+    type: "success" as const, // Add type assertion
   },
   {
     id: "n8",
@@ -75,7 +75,7 @@ const notifications = [
     description: "Your risk profile has been updated to Moderate.",
     date: new Date(Date.now() - 86400000 * 7), // 7 days ago
     read: true,
-    type: "info",
+    type: "info" as const, // Add type assertion
   },
 ]
 

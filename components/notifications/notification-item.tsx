@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+// Update the interface to be more explicit about the type
 interface NotificationItemProps {
   notification: {
     id: string
