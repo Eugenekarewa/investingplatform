@@ -20,21 +20,33 @@ const SUI_NETWORK = "https://fullnode.devnet.sui.io" // Change as needed
 const PACKAGE_ID = "" // Update with your deployed package ID
 const PLATFORM_ID = "" // Update with your platform object ID
 
+// Development mode flag - set to true to use mock wallet
+const DEV_MODE = true
+const MOCK_WALLET_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678"
+
 // Initialize client
 const suiClient = new SuiClient({ url: SUI_NETWORK })
 
 // Wallet connection
-// Update the connectToWallet function to handle the case when the wallet extension is not available
 export async function connectToWallet() {
+  // In development mode, return a mock wallet
+  if (DEV_MODE) {
+    console.log("Using mock wallet in development mode")
+    return {
+      address: MOCK_WALLET_ADDRESS,
+      connected: true,
+    }
+  }
+
   if (typeof window === "undefined") {
     throw new Error("Cannot connect to wallet on server side")
   }
 
-  // Check for different wallet providers - Sui wallet might be available under different properties
+  // Check for different wallet providers
   const walletProvider = window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
 
   if (!walletProvider) {
-    console.error("No Sui wallet provider found in window object:", window)
+    console.error("No Sui wallet provider found. Please install the Sui Wallet extension.")
     throw new Error("Sui Wallet extension not found. Please install the Sui Wallet extension and refresh the page.")
   }
 
@@ -73,8 +85,48 @@ export async function connectToWallet() {
   }
 }
 
-// Also update the getConnectedWallet function for consistency
+export async function disconnectWallet() {
+  // In development mode, just return success
+  if (DEV_MODE) {
+    console.log("Mock wallet disconnected in development mode")
+    return true
+  }
+
+  if (typeof window !== "undefined") {
+    // Check for different wallet providers
+    const walletProvider =
+      window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
+
+    if (walletProvider) {
+      // Try different disconnect methods
+      if (walletProvider.disconnect) {
+        await walletProvider.disconnect()
+      } else if (walletProvider.signOut) {
+        await walletProvider.signOut()
+      }
+      return true
+    }
+  }
+  return false
+}
+
 export async function getConnectedWallet() {
+  // In development mode, check if we should return a mock connected wallet
+  if (DEV_MODE) {
+    // Simulate a 50% chance of being already connected in dev mode
+    // This allows testing both connected and disconnected states
+    const shouldBeConnected = localStorage.getItem("devWalletConnected") === "true"
+
+    if (shouldBeConnected) {
+      console.log("Using mock connected wallet in development mode")
+      return {
+        address: MOCK_WALLET_ADDRESS,
+        connected: true,
+      }
+    }
+    return null
+  }
+
   if (typeof window === "undefined") {
     return null
   }
@@ -111,28 +163,20 @@ export async function getConnectedWallet() {
   }
 }
 
-// Update the disconnectWallet function as well
-export async function disconnectWallet() {
-  if (typeof window !== "undefined") {
-    // Check for different wallet providers
-    const walletProvider =
-      window.suiWallet || (window as any).sui || (window as any).suiWallet || (window as any).wallet
-
-    if (walletProvider) {
-      // Try different disconnect methods
-      if (walletProvider.disconnect) {
-        await walletProvider.disconnect()
-      } else if (walletProvider.signOut) {
-        await walletProvider.signOut()
-      }
-      return true
-    }
-  }
-  return false
-}
-
 // Contract Interactions
 export async function registerUser(riskProfile: number) {
+  // In development mode, simulate successful registration
+  if (DEV_MODE) {
+    console.log("Mock user registration with risk profile:", riskProfile)
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
+    return {
+      success: true,
+      digest: "0x" + Math.random().toString(16).substring(2, 10),
+      status: "success",
+      events: [],
+    }
+  }
+
   if (typeof window === "undefined" || !window.suiWallet) {
     throw new Error("Wallet not connected")
   }
@@ -147,6 +191,18 @@ export async function registerUser(riskProfile: number) {
 }
 
 export async function investInAsset(assetId: string, amount: number) {
+  // In development mode, simulate successful investment
+  if (DEV_MODE) {
+    console.log("Mock investment in asset:", assetId, "amount:", amount)
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
+    return {
+      success: true,
+      digest: "0x" + Math.random().toString(16).substring(2, 10),
+      status: "success",
+      events: [],
+    }
+  }
+
   if (typeof window === "undefined" || !window.suiWallet) {
     throw new Error("Wallet not connected")
   }
@@ -168,6 +224,18 @@ export async function investInAsset(assetId: string, amount: number) {
 }
 
 export async function contributeToPool(poolId: string, amount: number) {
+  // In development mode, simulate successful contribution
+  if (DEV_MODE) {
+    console.log("Mock contribution to pool:", poolId, "amount:", amount)
+    await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate network delay
+    return {
+      success: true,
+      digest: "0x" + Math.random().toString(16).substring(2, 10),
+      status: "success",
+      events: [],
+    }
+  }
+
   if (typeof window === "undefined" || !window.suiWallet) {
     throw new Error("Wallet not connected")
   }

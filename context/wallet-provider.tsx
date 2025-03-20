@@ -26,7 +26,6 @@ export function useWallet() {
   return context
 }
 
-// Update the WalletProvider to handle wallet connection errors better
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [connecting, setConnecting] = useState(false)
@@ -62,6 +61,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       const connectedWallet = await connectToWallet()
       setWallet(connectedWallet)
+
+      // For development mode - store connection state in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("devWalletConnected", "true")
+      }
     } catch (err: any) {
       const errorMessage = err.message || "Failed to connect wallet"
       setError(errorMessage)
@@ -69,7 +73,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       // Show a more user-friendly message if the wallet extension is not found
       if (errorMessage.includes("not found")) {
-        alert("Sui Wallet extension not found. Please install the Sui Wallet extension and refresh the page.")
+        console.warn(
+          "Sui Wallet extension not found. In a production environment, you would need to install the Sui Wallet extension.",
+        )
       }
     } finally {
       setConnecting(false)
@@ -82,6 +88,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       await disconnectWallet()
       setWallet(null)
+
+      // For development mode - store connection state in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("devWalletConnected", "false")
+      }
     } catch (err) {
       console.error("Failed to disconnect wallet:", err)
     }
